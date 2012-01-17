@@ -2,11 +2,11 @@ function handleMessage(event) {
     var data = event.data;
 	switch(data.calc){
 		case 'primes':
-			var numPrimes = data.data[0];
-			var primes = [2];
+			var numPrimes = parseInt(data.data[1]);
+			var primes = [];
 			
-			var p = 3;
-			while( primes.length < numPrimes ){
+			var p = parseInt(data.data[0]);
+			while( p <= numPrimes ){
 				isPrime = false;
 				for( var i = 3; i <= Math.sqrt(p); i += 2 ) {
 					if( p%i == 0 ) {
