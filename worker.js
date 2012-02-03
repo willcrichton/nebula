@@ -6,6 +6,7 @@ function handleMessage(event) {
 			var primes = [];
 			
 			var p = parseInt(data.data[0]);
+			if( p%2 == 0 ) p++;
 			while( p <= numPrimes ){
 				isPrime = false;
 				for( var i = 3; i <= Math.sqrt(p); i += 2 ) {
