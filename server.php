@@ -6,6 +6,8 @@ class ServerControl extends WebSocket {
 	
 	var $timer;
 	var $timer2;
+	var $calcQueue = array();
+	var $answerMatch = array();
 	
 	function process($user, $msg){
 		$words = explode(" ", $msg);
@@ -13,25 +15,30 @@ class ServerControl extends WebSocket {
 			case "find_primes":
 				$max = intval($words[1]);
 				$i = 1;
-				$this->timer = microtime(true);
+				/*($this->timer = microtime(true);
 				$output = exec("echo $max | primes.exe");
 				$endtime = microtime(true) - $this->timer;
-				$user->send("Primes calc after $endtime seconds");
+				$user->send("Primes calc after $endtime seconds");*/
 				
-				/*foreach($this->users as $u){
+				$this->timer = microtime(true);
+				$queueIndex = uniqid();
+				$this->calcQueue[$queueIndex] = array( 'users' => array(), 'answer' => array(), 'asker' => $user->id );
+				foreach($this->users as $u){
 					if(!$u->hasWorker){
 						$u->send("COMMAND create");
 						$u->hasWorker = true;
 					}
 					
-					$this->timer = microtime(true);
 					$u->send("COMMAND newcalc");
-					$u->send($i == 1 ? 3 : $max / count($this->users) * ($i - 1));
-					$u->send($max / count($this->users) * $i);
+					$u->send($i == 1 ? 3 : floor($max / count($this->users) * ($i - 1)) + 1);
+					$u->send(floor($max / count($this->users) * $i));
 					$u->send("COMMAND docalc primes");
 					
+					$this->calcQueue[$queueIndex]['users'][] = $u->id;
+					$this->answerMatch[$u->id] = $queueIndex;
+					
 					$i++;
-				}*/
+				}
 				
 				/*$this->timer2 = microtime(true);
 				$primes = array();
@@ -66,18 +73,56 @@ class ServerControl extends WebSocket {
 				}
 				break;
 				
+			case "end_calc":
+			
+				// Find the array of calculation info via the uniq ID contained in answerMatch
+				$calcID = $this->answerMatch[$user->id];
+				$calc = $this->calcQueue[$calcID];	
+				
+				// Remove the user from answerMatch so further messages aren't thought as additional calculations
+				unset($this->answerMatch[$user->id]);		
+	
+				// Send the user the full answer if we've gotten all the info
+				if( count($calc['users']) == count($calc['answer']) ):				
+					$answer = "";
+					
+					for($i = 0; $i < count($calc['answer']); $i++) 
+						$answer .= $this->calcQueue[$calcID]['answer'][$i] . ($i == count($calc['answer'])-1 ? " " : ", ");
+						
+					foreach( $this->users as $u )
+						if($u->id == $calc['asker']){ $u->send("Your answer (" . round(microtime(true)-$this->timer,5) . "): $answer"); break; }
+						
+					// Destroy the calculation
+					unset($this->calcQueue[$calcID]);
+				endif;
+				
+				$user->send("TESTING!!!");
+				
+				break;
+				
 			default:
-				$user->send("Chunk of length " . strlen($msg) . " received after " . (microtime(true) - $this->timer) . " seconds" );
+				if( isset($this->answerMatch[$user->id]) ):
+					// Find the array of calculation info via the uniq ID contained in answerMatch
+					$calcID = $this->answerMatch[$user->id];
+					$calc = $this->calcQueue[$calcID];
+			
+					// Find which index in the answer array to put the user's message
+					$userIndex = 0;
+					foreach($calc['users'] as $k => $v)
+						if( $v == $user->id ){ $userIndex = $k; break; }
+											
+					// Add the user's message to the answer array
+					$this->calcQueue[$calcID]['answer'][$userIndex] = isset($this->calcQueue[$calcID]['answer'][$userIndex]) ? $this->calcQueue[$calcID]['answer'][$userIndex] . $msg : $msg;
+				else: 
+					foreach($this->users as $u)
+						$u->send("Chunk of length " . strlen($msg) . " received after " . round(microtime(true) - $this->timer,5) . " seconds from user " . $user->id . ($user->id == $u->id ? " (you) " : "") );
+				endif;
 				break;
 		endswitch;
 	}
 	
-	function onConnect($user){}
-	
-	function onDisconnect($user){}
-
 }
 
-$master = new ServerControl("localhost",8849);
+$master = new ServerControl("localhost",8803);
 
 ?>

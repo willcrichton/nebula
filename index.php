@@ -27,7 +27,7 @@
 				}
 				
 				// WebSocket utility variables
-				var host = 'ws://localhost:8849/scifair/server.php';
+				var host = 'ws://localhost:8803/scifair/server.php';
 				var curState = STATE_OFF;
 				var workerData = [];
 				
@@ -37,7 +37,8 @@
 					var i = 0;
 					msg = String(msg);
 					do {
-						socket.send(msg.substring(i, Math.min(i+chunkSize, msg.length)));
+						var chunk = msg.substring(i, Math.min(i+chunkSize, msg.length));
+						socket.send(chunk);
 						i += chunkSize
 					} while( i < msg.length );
 				}
@@ -45,6 +46,7 @@
 				// WebWorker handler functions (for use when created)
 				function handleWorkerMessage(event){
 					sendChunks(event.data, 2040);
+					sendChunks("end_calc", 2040);
 					output("Worker: " + String(event.data).substring(0,10));
 					curState = STATE_READY;
 				}
@@ -100,7 +102,7 @@
 								break;
 							// Error
 							default:
-								output("Server: " + String(data.data).substring(0,175));
+								output("Server: " + String(data.data).substring(0,1000));
 								break;
 						}						
 					}
