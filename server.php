@@ -15,24 +15,24 @@ class ServerControl extends WebSocket {
 			case "find_primes":
 				$max = intval($words[1]);
 				$i = 1;
-				/*($this->timer = microtime(true);
+				$this->timer = microtime(true);
 				$output = exec("echo $max | primes.exe");
-				$endtime = microtime(true) - $this->timer;
-				$user->send("Primes calc after $endtime seconds");*/
+				$endtime = round(microtime(true) - $this->timer,5);
+				$user->send("C++ calc primes after $endtime seconds");
 				
 				$this->timer = microtime(true);
 				$queueIndex = uniqid();
 				$this->calcQueue[$queueIndex] = array( 'users' => array(), 'answer' => array(), 'asker' => $user->id );
 				foreach($this->users as $u){
 					if(!$u->hasWorker){
-						$u->send("COMMAND create");
+						$u->send("CMD create");
 						$u->hasWorker = true;
 					}
 					
-					$u->send("COMMAND newcalc");
+					$u->send("CMD newcalc");
 					$u->send($i == 1 ? 3 : floor($max / count($this->users) * ($i - 1)) + 1);
 					$u->send(floor($max / count($this->users) * $i));
-					$u->send("COMMAND docalc primes");
+					$u->send("CMD docalc primes");
 					
 					$this->calcQueue[$queueIndex]['users'][] = $u->id;
 					$this->answerMatch[$u->id] = $queueIndex;
@@ -61,15 +61,15 @@ class ServerControl extends WebSocket {
 			case "sum":
 				foreach($this->users as $u){
 					if(!$u->hasWorker){
-						$u->send("COMMAND create");
+						$u->send("CMD create");
 						$u->hasWorker = true;
 					}
 					
 					$this->timer = microtime(true);
-					$u->send("COMMAND newcalc");
+					$u->send("CMD newcalc");
 					for($i = 1; $i < count($words); $i++)
 						$u->send($words[$i]);
-					$u->send("COMMAND docalc sum");
+					$u->send("CMD docalc sum");
 				}
 				break;
 				
@@ -95,9 +95,7 @@ class ServerControl extends WebSocket {
 					// Destroy the calculation
 					unset($this->calcQueue[$calcID]);
 				endif;
-				
-				$user->send("TESTING!!!");
-				
+								
 				break;
 				
 			default:
@@ -123,6 +121,6 @@ class ServerControl extends WebSocket {
 	
 }
 
-$master = new ServerControl("localhost",8803);
+$master = new ServerControl("localhost",8800);
 
 ?>
