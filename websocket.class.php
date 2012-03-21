@@ -218,7 +218,7 @@
     if(preg_match("/Sec-WebSocket-Key2: (.*)\r\n/",$req,$match)){ $this->log("Sec Key2: ".$sk2=$match[1]); }
     if(preg_match("/Sec-WebSocket-Key: (.*)\r\n/" ,$req,$match)){ $this->log("new Sec Key2: ".$sk0=$match[1]); }
     if($match=substr($req,-8))                                                                  { $this->log("Last 8 bytes: ".$l8b=$match); }
-    return array($r,$h,$o,$sk1,$sk2,$l8b,$sk0);
+    return array($r,$h,$o,isset($sk1)?$sk1:"",isset($sk2)?$sk1:"",$l8b,$sk0);
   }
 
   function getuserbysocket($socket){
@@ -298,6 +298,6 @@
 		var $hasWorker = false;
 		function send($msg){
 			$this->controller->send($this->socket,$msg);
-		  }
+		}
 	}
 ?>

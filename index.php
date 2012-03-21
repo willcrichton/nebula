@@ -11,7 +11,7 @@
 		<script>
 			var neb;
 			$(document).ready(function(){ 
-				neb = new Nebula('ws://localhost:8800/scifair/server.php', 'worker.js'); 
+				neb = new Nebula('ws://localhost:8754/scifair/server.php', 'worker.js'); 
 			});
 		</script>
 	</head>
@@ -19,9 +19,10 @@
 		<div id="container">
 			<h1>Sample Site</h1>
 			<img src="http://www.dummyimage.com/600x50" />
-			<form id="input" onsubmit="neb.send(this.message.value); return false;">
+			<form id="input" onsubmit="neb.send(this.command.value); return false;">
 				<h2>Input</h2>
-				<input type="text" name="message" placeholder="Send a command" /><br />
+				<input type="text" name="command" placeholder="Send a command" /><br />
+				<input type="checkbox" name="continuous" /> Continuous?<br />
 				<input type="submit" value="Submit" />
 			</form>
 			<div id="output">

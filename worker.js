@@ -20,7 +20,7 @@ function handleMessage(event) {
 				p += 2;
 			}
 			
-			postMessage( primes.join(", ") );
+			postMessage( primes.join(" ") );
 			break;
 			
 		case 'sum':

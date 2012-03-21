@@ -6,21 +6,37 @@ class ServerControl extends WebSocket {
 	
 	var $timer;
 	var $timer2;
+	var $timer3;
 	var $calcQueue = array();
 	var $answerMatch = array();
+	var $serverDebug = true;
 	
 	function process($user, $msg){
 		$words = explode(" ", $msg);
+		if($serverDebug) $user->send("Received '" . utf8_encode($msg));
 		switch($words[0]):
 			case "find_primes":
 				$max = intval($words[1]);
 				$i = 1;
-				$this->timer = microtime(true);
-				$output = exec("echo $max | primes.exe");
-				$endtime = round(microtime(true) - $this->timer,5);
-				$user->send("C++ calc primes after $endtime seconds");
+
+				/*$this->timer2 = microtime(true);
+				$primes = array();
+				$p = 3;
+				//$user->send("PHP doing prime calc of max " . $words[1]);
+				while( $p <= intval($words[1]) ){
+					$isPrime = false;
+					for( $i = 3; $i < sqrt($p); $i += 2 ){
+						if( $p%$i == 0 ){
+							$isPrime = true;
+							break;
+						}
+					}
+					if(!$isPrime) $primes[] = $p;
+					$p += 2;
+				}
+				$user->send(round(microtime(true) - $this->timer2,5));*/
 				
-				$this->timer = microtime(true);
+				$this->timer3 = microtime(true);
 				$queueIndex = uniqid();
 				$this->calcQueue[$queueIndex] = array( 'users' => array(), 'answer' => array(), 'asker' => $user->id );
 				foreach($this->users as $u){
@@ -40,22 +56,7 @@ class ServerControl extends WebSocket {
 					$i++;
 				}
 				
-				/*$this->timer2 = microtime(true);
-				$primes = array();
-				$p = 3;
-				$user->send("PHP doing prime calc of max " . $words[1]);
-				while( $p <= intval($words[1]) ){
-					$isPrime = false;
-					for( $i = 3; $i < sqrt($p); $i += 2 ){
-						if( $p%$i == 0 ){
-							$isPrime = true;
-							break;
-						}
-					}
-					if(!$isPrime) $primes[] = $p;
-					$p += 2;
-				}
-				$user->send("PHP calc primes after " . (microtime(true) - $this->timer2) . " seconds");*/
+				
 				break;
 				
 			case "sum":
@@ -73,8 +74,8 @@ class ServerControl extends WebSocket {
 				}
 				break;
 				
-			case "end_calc":
-			
+			case "end_calc":				
+				
 				// Find the array of calculation info via the uniq ID contained in answerMatch
 				$calcID = $this->answerMatch[$user->id];
 				$calc = $this->calcQueue[$calcID];	
@@ -90,7 +91,11 @@ class ServerControl extends WebSocket {
 						$answer .= $this->calcQueue[$calcID]['answer'][$i] . ($i == count($calc['answer'])-1 ? " " : ", ");
 						
 					foreach( $this->users as $u )
-						if($u->id == $calc['asker']){ $u->send("Your answer (" . round(microtime(true)-$this->timer,5) . "): $answer"); break; }
+						if($u->id == $calc['asker']){ 
+							//$u->send("Your answer (" . round(microtime(true)-$this->timer,5) . "): $answer"); 
+							$u->send(round(microtime(true)-$this->timer3,5));
+							break; 
+						}
 						
 					// Destroy the calculation
 					unset($this->calcQueue[$calcID]);
@@ -111,9 +116,10 @@ class ServerControl extends WebSocket {
 											
 					// Add the user's message to the answer array
 					$this->calcQueue[$calcID]['answer'][$userIndex] = isset($this->calcQueue[$calcID]['answer'][$userIndex]) ? $this->calcQueue[$calcID]['answer'][$userIndex] . $msg : $msg;
+					
 				else: 
 					foreach($this->users as $u)
-						$u->send("Chunk of length " . strlen($msg) . " received after " . round(microtime(true) - $this->timer,5) . " seconds from user " . $user->id . ($user->id == $u->id ? " (you) " : "") );
+						$u->send("Chunk of length " . strlen($msg) . " received after " . round(microtime(true) - $this->timer3,5) . " seconds from user " . $user->id . ($user->id == $u->id ? " (you) " : "") );
 				endif;
 				break;
 		endswitch;
@@ -121,6 +127,6 @@ class ServerControl extends WebSocket {
 	
 }
 
-$master = new ServerControl("localhost",8800);
+$master = new ServerControl("localhost",8754);
 
 ?>

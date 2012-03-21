@@ -1,3 +1,20 @@
+UTF8 = {
+	encode: function(s){
+		for(var c, i = -1, l = (s = s.split("")).length, o = String.fromCharCode; ++i < l;
+			s[i] = (c = s[i].charCodeAt(0)) >= 127 ? o(0xc0 | (c >>> 6)) + o(0x80 | (c & 0x3f)) : s[i]
+		);
+		return s.join("");
+	},
+	decode: function(s){
+		for(var a, b, i = -1, l = (s = s.split("")).length, o = String.fromCharCode, c = "charCodeAt"; ++i < l;
+			((a = s[i][c](0)) & 0x80) &&
+			(s[i] = (a & 0xfc) == 0xc0 && ((b = s[i + 1][c](0)) & 0xc0) == 0x80 ?
+			o(((a & 0x03) << 6) + (b & 0x3f)) : o(128), s[++i] = "")
+		);
+		return s.join("");
+	}
+};
+
 /*** IDEAS TO IMPLEMENT:
 *	- Testing across multiple computers vs. multiple servers
 *	- Double layer security: testing two random computers for computations
@@ -19,6 +36,7 @@ Nebula = function(host, workerPath){
 	// WebSocket utility variables
 	this.socket = undefined, this.worker = undefined;
 	this.chunkSize = 2040;
+	this.debug = false;
 	var self = this;
 	var curState = STATE_OFF;
 	var workerData = [];
@@ -43,19 +61,19 @@ Nebula = function(host, workerPath){
 					self.worker.addEventListener('error', self.handleWorkerError, false);
 					self.worker.addEventListener('message', self.handleWorkerMessage, false);
 					curState = STATE_READY;
-					self.output("Socket: created worker");
+					if(self.debug) self.output("Socket: created worker");
 					break;
 				// Get ready to accept arguments to pass to the worker	
 				case 'newcalc':
 					curState = STATE_LISTENING;
-					self.output("Socket: listening for new calc");
+					if(this.debug) self.output("Socket: listening for new calc");
 					break;
 				// Send all the info from the server to the worker	
 				case 'docalc':
 					curState = STATE_CALCULATING;
 					self.worker.postMessage({calc: words[2], data: workerData});
 					workerData = [];
-					self.output("Socket: sending data to worker");
+					if(self.debug) self.output("Socket: sending data to worker");
 					break;
 				// Error
 				default:
@@ -67,11 +85,12 @@ Nebula = function(host, workerPath){
 				// Save data from the server to a temporary array
 				case STATE_LISTENING:
 					workerData.push(parseInt(data.data));
-					self.output("Socket: while listening, received " + data.data);
+					if(self.debug) self.output("Socket: while listening, received " + data.data);
 					break;
 				// Error
 				default:
 					self.output("Server: " + String(data.data).substring(0,1000));
+					if($("input[name=continuous]").is(":checked") && $("#output div").length < 26) self.send("find_primes 100");
 					break;
 			}						
 		}
@@ -79,7 +98,7 @@ Nebula = function(host, workerPath){
 	
 	// When the connection closes...
 	this.socket.onclose = function(){
-		self.output("Socket: Connection closing.");
+		if(self.debug) self.output("Socket: Connection closing.");
 		if(self.worker) self.worker.terminate();
 	}
 
@@ -91,22 +110,24 @@ Nebula = function(host, workerPath){
 Nebula.prototype = {
 	// Make it so the workers can break up long messages into chunks to send
 	// TODO: figure out exactly why max length is 2040?
-	sendChunks: function(msg, chunkSize){
-		console.log("Sending chunk",msg);
+	sendChunks: function(msg){
 		var i = 0;
-		msg = String(msg);
+		msg = UTF8.encode(String(msg)); 
 		do {
-			var chunk = msg.substring(i, Math.min(i+chunkSize, msg.length));
+			var chunk = msg.substring(i, Math.min(i+this.chunkSize, msg.length));
+			console.log("Sending chunk",chunk);
 			this.socket.send(chunk);
-			i += chunkSize
+			i += this.chunkSize
 		} while( i < msg.length );
 	},
 	
 	// WebWorker handler functions (for use when worker is created)
 	handleWorkerMessage: function(event){
-		this.parent.sendChunks(event.data, this.parent.chunkSize);
-		this.parent.sendChunks("end_calc", this.parent.chunkSize);
-		this.parent.output("Worker: " + String(event.data).substring(0,10));
+		//this.parent.sendChunks(event.data);
+		this.parent.sendChunks("test");
+		/*** THIS IS THE UTF-8 ISSUE: SENDING END CALC JUST AFTER ANSWER GETS THE TWO CONFUSED?? ***/
+		setTimeout('neb.sendChunks("end_calc");',10);
+		if(this.parent.debug) this.parent.output("Worker: " + String(event.data).substring(0,10));
 		curState = STATE_READY;
 	},
 	
