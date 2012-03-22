@@ -89,8 +89,8 @@ Nebula = function(host, workerPath){
 					break;
 				// Error
 				default:
-					self.output("Server: " + String(data.data).substring(0,1000));
-					if($("input[name=continuous]").is(":checked") && $("#output div").length < 26) self.send("find_primes 100");
+					self.output(String(data.data).substring(0,1000));
+					if($("input[name=continuous]").is(":checked") && $("#output div").length < 26) setTimeout('neb.send("find_primes 10000000");',100);
 					break;
 			}						
 		}

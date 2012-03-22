@@ -1,4 +1,10 @@
-<?php  /*  >php -q server.php  */
+<?php
+/*************************************
+* server.php - a WebSocket controller
+* Created by Will Crichton, 2012
+* Handles incoming messages on the WebSocket 
+* Distributes calculations to users
+*************************************/
 
 require_once("websocket.class.php");
 
@@ -7,22 +13,26 @@ class ServerControl extends WebSocket {
 	var $timer;
 	var $timer2;
 	var $timer3;
-	var $calcQueue = array();
-	var $answerMatch = array();
-	var $serverDebug = true;
+	var $calcQueue = array();	// array of all the pending calculations
+	var $answerMatch = array();	// array which matches received answers to calculations
+	var $serverDebug = false;	// turn on for more messages
 	
+	// method called whenever a message is received via the websocket
 	function process($user, $msg){
 		$words = explode(" ", $msg);
-		if($serverDebug) $user->send("Received '" . utf8_encode($msg));
+		if($this->serverDebug) $user->send("Received '" . utf8_encode($msg));
 		switch($words[0]):
 			case "find_primes":
+				// Try finding primes via C++ (primes.exe)
 				$max = intval($words[1]);
-				$i = 1;
-
-				/*$this->timer2 = microtime(true);
+				$this->timer = microtime(true);
+				exec("echo $max | primes.exe"); // run the program ($user->send won't be called til exec is finished)
+				$user->send("C++: " . round(microtime(true) - $this->timer,5));*/
+				
+				// Now try and find via PHP (super slow)
+				$this->timer2 = microtime(true);
 				$primes = array();
 				$p = 3;
-				//$user->send("PHP doing prime calc of max " . $words[1]);
 				while( $p <= intval($words[1]) ){
 					$isPrime = false;
 					for( $i = 3; $i < sqrt($p); $i += 2 ){
@@ -34,31 +44,38 @@ class ServerControl extends WebSocket {
 					if(!$isPrime) $primes[] = $p;
 					$p += 2;
 				}
-				$user->send(round(microtime(true) - $this->timer2,5));*/
-				
+				$user->send("PHP: " . round(microtime(true) - $this->timer2,5));
+		
+				// Lastly, do what we want: broadcast the calculation to the users
 				$this->timer3 = microtime(true);
-				$queueIndex = uniqid();
+				$queueIndex = uniqid();	// generate a unique ID so we can match received calculations to their correct slot in the calcQueue
 				$this->calcQueue[$queueIndex] = array( 'users' => array(), 'answer' => array(), 'asker' => $user->id );
+				$i = 1;
 				foreach($this->users as $u){
+					// Tell the user to make a new worker if they don't already have one
 					if(!$u->hasWorker){
 						$u->send("CMD create");
 						$u->hasWorker = true;
 					}
 					
+					// Tell the user to start listening for arguments to the calculation
 					$u->send("CMD newcalc");
+					// Send the user the bottom and top bounds to check for prime numbers based on # of clients connected
 					$u->send($i == 1 ? 3 : floor($max / count($this->users) * ($i - 1)) + 1);
 					$u->send(floor($max / count($this->users) * $i));
 					$u->send("CMD docalc primes");
 					
+					// Add the user to the list of users currently calculating primes
 					$this->calcQueue[$queueIndex]['users'][] = $u->id;
+					// This let's us know quickly which calcQueue element this user is currently operating on
 					$this->answerMatch[$u->id] = $queueIndex;
 					
 					$i++;
 				}
 				
-				
 				break;
 				
+			// Just a test case I worked on, nothing big
 			case "sum":
 				foreach($this->users as $u){
 					if(!$u->hasWorker){
@@ -86,14 +103,15 @@ class ServerControl extends WebSocket {
 				// Send the user the full answer if we've gotten all the info
 				if( count($calc['users']) == count($calc['answer']) ):				
 					$answer = "";
-					
+				
+					// Build up the answer from all info received from different clients
 					for($i = 0; $i < count($calc['answer']); $i++) 
 						$answer .= $this->calcQueue[$calcID]['answer'][$i] . ($i == count($calc['answer'])-1 ? " " : ", ");
 						
+					// Find the original asker and send them the answer
 					foreach( $this->users as $u )
 						if($u->id == $calc['asker']){ 
-							//$u->send("Your answer (" . round(microtime(true)-$this->timer,5) . "): $answer"); 
-							$u->send(round(microtime(true)-$this->timer3,5));
+							$u->send("JS: ". round(microtime(true)-$this->timer3,5));
 							break; 
 						}
 						
@@ -118,6 +136,7 @@ class ServerControl extends WebSocket {
 					$this->calcQueue[$calcID]['answer'][$userIndex] = isset($this->calcQueue[$calcID]['answer'][$userIndex]) ? $this->calcQueue[$calcID]['answer'][$userIndex] . $msg : $msg;
 					
 				else: 
+					// Default to notifying what the chunk received was
 					foreach($this->users as $u)
 						$u->send("Chunk of length " . strlen($msg) . " received after " . round(microtime(true) - $this->timer3,5) . " seconds from user " . $user->id . ($user->id == $u->id ? " (you) " : "") );
 				endif;
@@ -127,6 +146,4 @@ class ServerControl extends WebSocket {
 	
 }
 
-$master = new ServerControl("localhost",8754);
-
-?>
+new ServerControl("localhost",8749); ?>
